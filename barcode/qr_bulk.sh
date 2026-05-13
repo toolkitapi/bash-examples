@@ -1,0 +1,9 @@
+#!/bin/bash
+# Barcode Toolkit — Bulk QR code generation
+# Usage: export TOOLKITAPI_KEY=tk_live_...; bash qr_bulk.sh
+set -euo pipefail
+API_KEY="${TOOLKITAPI_KEY:-}"; if [ -z "$API_KEY" ]; then echo "Error: TOOLKITAPI_KEY is not set" >&2; exit 1; fi
+curl -sf -X POST -H "X-API-Key: ${API_KEY}" -H "Accept: application/json" \
+  -H "Content-Type: application/json" \
+  -d '{"items":[{"data":"https://toolkitapi.io","size":200},{"data":"https://github.com","size":200},{"data":"Contact: Jane Doe","size":300}]}' \
+  "https://barcode.toolkitapi.io/v1/barcode/qr-bulk" | jq .
