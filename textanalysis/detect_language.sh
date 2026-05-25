@@ -6,4 +6,4 @@ API_KEY="${TOOLKITAPI_KEY:-}"; if [ -z "$API_KEY" ]; then echo "Error: TOOLKITAP
 curl -sf -X POST -H "X-API-Key: ${API_KEY}" -H "Accept: application/json" \
   -H "Content-Type: application/json" \
   -d '{"text":"Bonjour, comment allez-vous aujourd'\''hui?"}' \
-  "https://textanalysis.toolkitapi.io/v1/text/language" | jq .
+  "https://textanalysis.toolkitapi.io/v1/text/detect-language" | jq .

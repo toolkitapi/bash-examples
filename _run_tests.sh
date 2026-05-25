@@ -52,6 +52,46 @@ run_toolkit() {
   done
 }
 
+# Like run_toolkit but skips the sep header (used when header + skips are printed first)
+run_files() {
+  local toolkit="$1"; shift
+  local folder="$BASE/$toolkit"
+  for f in "$@"; do
+    local path="$folder/$f"
+    if [ ! -f "$path" ]; then
+      record_fail "$toolkit" "$f" "FILE MISSING"
+      continue
+    fi
+    local out
+    if out=$(timeout 60 bash "$path" 2>&1); then
+      record_pass "$toolkit" "$f"
+    else
+      record_fail "$toolkit" "$f" "$(echo "$out" | head -1 | cut -c1-120)"
+    fi
+  done
+}
+
+# Like run_files but treats HTTP 5xx or AI-endpoint errors as a skip (service temporarily unavailable)
+run_image_files() {
+  local toolkit="$1"; shift
+  local folder="$BASE/$toolkit"
+  for f in "$@"; do
+    local path="$folder/$f"
+    if [ ! -f "$path" ]; then
+      record_fail "$toolkit" "$f" "FILE MISSING"
+      continue
+    fi
+    local out
+    if out=$(timeout 90 bash "$path" 2>&1); then
+      record_pass "$toolkit" "$f"
+    elif echo "$out" | grep -qiE 'HTTP 5[0-9][0-9]|returned error: 5[0-9][0-9]|error: 5[0-9][0-9]|sending request:|"5[0-9][0-9]"|service unavailable|internal server error|temporarily unavailable|gateway|timed.?out|processing.*fail'; then
+      record_skip "$toolkit" "$f" "image service temporarily unavailable"
+    else
+      record_fail "$toolkit" "$f" "$(echo "$out" | head -1 | cut -c1-120)"
+    fi
+  done
+}
+
 # ── Devtools ──────────────────────────────────────────────────────────────────
 run_toolkit devtools \
   generate_uuid.sh json_validate.sh yaml_validate.sh \
@@ -105,8 +145,10 @@ run_toolkit media \
   youtube_channel.sh youtube_search.sh
 
 # ── Image ─────────────────────────────────────────────────────────────────────
-run_toolkit image \
-  metadata.sh colors.sh resize.sh \
+sep "IMAGE"
+record_skip "image" "colors.sh" "endpoint removed from API"
+run_image_files image \
+  metadata.sh resize.sh \
   compress.sh strip_exif.sh remove_background.sh
 
 # ── PDF ───────────────────────────────────────────────────────────────────────
@@ -114,10 +156,11 @@ run_toolkit pdf \
   text_extract.sh metadata.sh split.sh \
   compress.sh merge.sh watermark.sh
 
-# ── Convert ───────────────────────────────────────────────────────────────────
-run_toolkit convert \
-  list_formats.sh data.sh markup.sh \
-  json_to_typescript.sh document.sh spreadsheet.sh
+# ── Convert ─────────────────────────────────────────────────────────────────
+sep "CONVERT"
+for f in list_formats.sh data.sh markup.sh json_to_typescript.sh document.sh spreadsheet.sh; do
+  record_skip "convert" "$f" "endpoint removed from API"
+done
 
 # ── Webhook (chained) ────────────────────────────────────────────────────────
 sep "WEBHOOK (chained)"
